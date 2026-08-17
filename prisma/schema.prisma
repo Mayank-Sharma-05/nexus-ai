@@ -1,0 +1,345 @@
+// ===================================================================
+// NEXUS AI — Database Schema (Supabase PostgreSQL + pgvector)
+// Implements PRD Section 6: Complete Database Architecture
+// ===================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum ProjectType {
+  WEBSITE
+  PORTFOLIO
+  RESUME_REPORT
+  CHAT
+}
+
+enum PortfolioTheme {
+  MINIMAL
+  CYBER
+  TERMINAL
+  STUDIO
+  STARTUP
+}
+
+enum SubscriptionTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  INCOMPLETE
+  TRIALING
+}
+
+model User {
+  id                  String       @id @default(uuid()) @db.Uuid
+  clerkId             String?      @unique
+  email               String       @unique
+  passwordHash        String?
+  authProvider        String       @default("clerk")
+  role                Role         @default(USER)
+  emailVerified       Boolean      @default(false)
+  status              UserStatus   @default(ACTIVE)
+  scheduledDeletionAt DateTime?
+  
+  stripeCustomerId    String?      @unique
+  tokensConsumed      Int          @default(0)
+  storageUsedBytes    BigInt       @default(0)
+  
+  profile             Profile?
+  settings            Settings?
+  subscription        Subscription?
+  
+  chats               Chat[]
+  projects            Project[]
+  knowledgeBases      KnowledgeBase[]
+  documents           Document[]
+  sessions            Session[]
+  apiUsageLogs        ApiUsageLog[]
+  auditLogs           AuditLog[]
+
+  createdAt           DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime     @updatedAt @db.Timestamptz(6)
+  deletedAt           DateTime?    @db.Timestamptz(6)
+
+  @@index([email])
+  @@index([clerkId])
+}
+
+model Profile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  displayName String?
+  avatarUrl   String?
+  bio         String?
+  githubUrl   String?
+  linkedinUrl String?
+  websiteUrl  String?
+
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+}
+
+model Settings {
+  id                   String   @id @default(uuid()) @db.Uuid
+  userId               String   @unique @db.Uuid
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  themePreference      String   @default("dark")
+  notificationsEnabled Boolean  @default(true)
+  memoryEnabled        Boolean  @default(true)
+  customApiKey         String?
+
+  createdAt            DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(6)
+}
+
+model Subscription {
+  id                   String             @id @default(uuid()) @db.Uuid
+  userId               String             @unique @db.Uuid
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  tier                 SubscriptionTier   @default(FREE)
+  status               SubscriptionStatus @default(ACTIVE)
+  currentPeriodEnd     DateTime?          @db.Timestamptz(6)
+  cancelAtPeriodEnd    Boolean            @default(false)
+
+  createdAt            DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime           @updatedAt @db.Timestamptz(6)
+}
+
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @db.Uuid
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  refreshTokenHash String
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime  @db.Timestamptz(6)
+  revokedAt        DateTime? @db.Timestamptz(6)
+
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+model Chat {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String    @default("New Conversation")
+  pinned    Boolean   @default(false)
+  messages  Message[]
+
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  @@index([userId, updatedAt])
+}
+
+model Message {
+  id               String   @id @default(uuid()) @db.Uuid
+  chatId           String   @db.Uuid
+  chat             Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  role             String   // user | assistant | system
+  content          String   @db.Text
+  attachments      Json?    // Array of file metadata
+  tokensUsed       Int      @default(0)
+  routerSuggestion Json?    // Actionable prompt card
+
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([chatId, createdAt])
+}
+
+model Project {
+  id               String            @id @default(uuid()) @db.Uuid
+  userId           String            @db.Uuid
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type             ProjectType
+  title            String
+  status           String            @default("active") // active | archived | deleted
+
+  generatedWebsite GeneratedWebsite?
+  portfolio        Portfolio?
+  resumeAnalysis   ResumeAnalysis?
+
+  createdAt        DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(6)
+  deletedAt        DateTime?         @db.Timestamptz(6)
+
+  @@index([userId, type, createdAt])
+}
+
+model GeneratedWebsite {
+  id                String   @id @default(uuid()) @db.Uuid
+  projectId         String   @unique @db.Uuid
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  prompt            String   @db.Text
+  techStack         Json
+  folderStructure   Json?
+  files             Json     // key-value mapping of file paths to contents
+  sourceStoragePath String?
+  deploymentUrl     String?
+
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(6)
+}
+
+model Portfolio {
+  id            String         @id @default(uuid()) @db.Uuid
+  projectId     String         @unique @db.Uuid
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  theme         PortfolioTheme @default(CYBER)
+  content       Json           // { name, bio, skills, projects, experience, education }
+  subdomain     String?        @unique
+  customDomain  String?        @unique
+  deploymentUrl String?
+
+  createdAt     DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(6)
+}
+
+model ResumeAnalysis {
+  id               String   @id @default(uuid()) @db.Uuid
+  projectId        String   @unique @db.Uuid
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  originalFilePath String?
+  jobDescription   String?  @db.Text
+  atsScore         Int      // 0 - 100
+  subScores        Json     // { keywords, impact, formatting, skills, structure }
+  matchedKeywords  Json     // string[]
+  missingKeywords  Json     // string[]
+  suggestions      Json     // Array of { section, current, improved, type }
+
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model KnowledgeBase {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @db.Uuid
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  documents Document[]
+
+  createdAt DateTime   @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime?  @db.Timestamptz(6)
+}
+
+model Document {
+  id              String          @id @default(uuid()) @db.Uuid
+  userId          String          @db.Uuid
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  knowledgeBaseId String?         @db.Uuid
+  knowledgeBase   KnowledgeBase?  @relation(fields: [knowledgeBaseId], references: [id], onDelete: SetNull)
+
+  fileName        String
+  fileType        String          // pdf | docx | txt | csv
+  storagePath     String?
+  fileSizeBytes   Int             @default(0)
+  status          String          @default("ready") // processing | ready | failed
+  chunks          DocumentChunk[]
+
+  createdAt       DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(6)
+  deletedAt       DateTime?       @db.Timestamptz(6)
+
+  @@index([userId, status])
+}
+
+model DocumentChunk {
+  id         String     @id @default(uuid()) @db.Uuid
+  documentId String     @db.Uuid
+  document   Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  chunkIndex Int
+  content    String     @db.Text
+  metadata   Json?      // page number, section, etc.
+  embedding  Embedding?
+
+  createdAt  DateTime   @default(now()) @db.Timestamptz(6)
+
+  @@index([documentId, chunkIndex])
+}
+
+model Embedding {
+  id        String                               @id @default(uuid()) @db.Uuid
+  chunkId   String                               @unique @db.Uuid
+  chunk     DocumentChunk                        @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  vector    Unsupported("vector(768)")?          // pgvector 768-dimension column
+  modelName String                               @default("text-embedding-3-small")
+
+  createdAt DateTime                             @default(now()) @db.Timestamptz(6)
+}
+
+model ApiUsageLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String?  @db.Uuid
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  module       String   // chat | website | portfolio | resume | rag
+  modelName    String
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  costUsd      Decimal  @db.Decimal(10, 6)
+  latencyMs    Int
+  status       String   @default("success") // success | error | rate_limited
+
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([userId, module, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @db.Uuid
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  action    String
+  actor     String
+  target    String?
+  ipAddress String?
+  metadata  Json?
+
+  timestamp DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([action, timestamp])
+}

@@ -1,0 +1,44 @@
+{
+  "name": "nexus-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nexus AI — One AI. Unlimited Creation. Production Next.js 15 Full-Stack Platform",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^6.0.0",
+    "@google/genai": "^1.13.0",
+    "@prisma/client": "^5.22.0",
+    "@stripe/stripe-js": "^4.9.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.454.0",
+    "mammoth": "^1.12.1",
+    "next": "^15.5.0",
+    "openai": "^4.71.1",
+    "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^6.2.108",
+    "prisma": "^5.22.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "stripe": "^17.3.1",
+    "tailwind-merge": "^2.5.4",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}
