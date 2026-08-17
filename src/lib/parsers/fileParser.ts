@@ -1,10 +1,8 @@
-import * as pdfjsLib from 'pdfjs-dist';
+import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import Tesseract from 'tesseract.js';
 
-// Disable worker for Node.js server environment
-// PDF.js can work without a worker for basic text extraction
-pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+
 
 export interface ParseResult {
   text: string;
@@ -22,8 +20,10 @@ export async function parseFile(buffer: Buffer, fileName: string): Promise<Parse
   try {
     switch (extension) {
       case 'pdf':
-        console.log('[FILE PARSER] Using PDF parser');
-        return await parsePDF(buffer);
+  return {
+    text: '',
+    error: 'PDF parsing temporarily disabled'
+  };
       case 'docx':
         console.log('[FILE PARSER] Using DOCX parser');
         return await parseDOCX(buffer);
@@ -47,59 +47,19 @@ export async function parseFile(buffer: Buffer, fileName: string): Promise<Parse
   }
 }
 
-async function parsePDF(buffer: Buffer): Promise<ParseResult> {
-  console.log('[PDF PARSER] ========== PDF PARSING START ==========');
-  console.log('[PDF PARSER] Buffer size:', buffer.length, 'bytes');
-  console.log('[PDF PARSER] Buffer first 20 bytes:', Array.from(buffer.slice(0, 20)));
-  
-  try {
-    console.log('[PDF PARSER] Loading PDF document...');
-    const loadingTask = pdfjsLib.getDocument({ data: buffer });
-    console.log('[PDF PARSER] Loading task created');
-    
-    const pdfDocument = await loadingTask.promise;
-    console.log('[PDF PARSER] PDF loaded successfully');
-    console.log('[PDF PARSER] Number of pages:', pdfDocument.numPages);
-    
-    if (pdfDocument.numPages === 0) {
-      console.error('[PDF PARSER] PDF has 0 pages');
-      return { text: '', error: 'PDF has no pages' };
-    }
+// async function parsePDF(buffer: Buffer): Promise<ParseResult> {
+//  console.log('[PDF PARSER] Parsing PDF with pdf-parse...');
 
-    let fullText = '';
-    
-    console.log('[PDF PARSER] Starting text extraction from all pages...');
-    for (let i = 1; i <= pdfDocument.numPages; i++) {
-      console.log(`[PDF PARSER] Processing page ${i}/${pdfDocument.numPages}`);
-      const page = await pdfDocument.getPage(i);
-      console.log(`[PDF PARSER] Page ${i} retrieved`);
-      
-      const textContent = await page.getTextContent();
-      console.log(`[PDF PARSER] Page ${i} text content items:`, textContent.items.length);
-      
-      const pageText = textContent.items.map((item: any) => item.str).join(' ');
-      console.log(`[PDF PARSER] Page ${i} extracted text length:`, pageText.length);
-      console.log(`[PDF PARSER] Page ${i} first 100 chars:`, pageText.substring(0, 100));
-      
-      fullText += pageText + '\n';
-    }
+// const pdfData = await pdfParse(buffer);
 
-    console.log('[PDF PARSER] Text extraction complete');
-    console.log('[PDF PARSER] Total extracted text length:', fullText.length);
-    console.log('[PDF PARSER] Total extracted text (first 500 chars):', fullText.substring(0, 500));
-    console.log('[PDF PARSER] ========== PDF PARSING SUCCESS ==========');
-    
-    return { text: fullText.trim() };
-  } catch (error) {
-    console.error('[PDF PARSER] ========== PDF PARSING ERROR ==========');
-    console.error('[PDF PARSER] Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[PDF PARSER] Error name:', error instanceof Error ? error.name : 'Unknown');
-    console.error('[PDF PARSER] Error message:', errorMessage);
-    console.error('[PDF PARSER] Error stack:', error instanceof Error ? error.stack : 'No stack');
-    return { text: '', error: `PDF parsing failed: ${errorMessage}` };
-  }
-}
+// console.log('[PDF PARSER] PDF parsed successfully');
+// console.log('[PDF PARSER] Number of pages:', pdfData.numpages);
+// console.log('[PDF PARSER] Extracted text length:', pdfData.text.length);
+// console.log('[PDF PARSER] ========== PDF PARSING SUCCESS ==========');
+
+// return {
+//   text: pdfData.text.trim()
+// }};
 
 async function parseDOCX(buffer: Buffer): Promise<ParseResult> {
   console.log('[DOCX PARSER] Starting DOCX parse');
