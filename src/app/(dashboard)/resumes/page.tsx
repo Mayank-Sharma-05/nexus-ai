@@ -55,7 +55,7 @@ export default function ResumesPage() {
     try {
       console.log('[RESUME UPLOAD] Converting file to ArrayBuffer...');
       const buffer = await file.arrayBuffer();
-      console.log('[RESUME UPLOAD] ArrayBuffer size:', buffer.length, 'bytes');
+      console.log('[RESUME UPLOAD] ArrayBuffer size:', buffer.byteLength, 'bytes');
       
       const uint8Array = new Uint8Array(buffer);
       console.log('[RESUME UPLOAD] Uint8Array length:', uint8Array.length);
