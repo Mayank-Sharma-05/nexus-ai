@@ -194,7 +194,7 @@ DATABASE_URL=postgresql://user:password@host:5432/database
 
 # Stripe (optional, for payments)
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxx
-STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxx
+STRIPE_SECRET_KEY=your_stripe_secret_key
 ```
 
 ---
