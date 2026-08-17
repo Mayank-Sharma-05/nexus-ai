@@ -52,7 +52,7 @@ export default function RAGPage() {
     try {
       console.log('[RAG FRONTEND] Starting file upload:', file.name);
       const buffer = await file.arrayBuffer();
-      console.log('[RAG FRONTEND] Buffer size:', buffer.length);
+      console.log('[RAG FRONTEND] Buffer size:', buffer.byteLength);
       
       // Parse file to extract text
       console.log('[RAG FRONTEND] Calling /api/v1/files/parse');
